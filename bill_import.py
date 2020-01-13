@@ -5,8 +5,9 @@ import re
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
+# classification.csv和脚本文件放在一起
 reader = pd.read_csv(r"./classification.csv", encoding='gbk', sep=',')
-patt = re.compile(r"1\d{10}(?:充值|缴费|交费)")
+patt = re.compile(r"1[34578]\d{9}(?:充值|缴费|交费)")
 
 
 # 根据txt的文本判断账单分类
@@ -17,10 +18,11 @@ def classify_by_csv(txt):
                 return index
             elif patt.search(txt):
                 return "通讯物流"
-    return '其他'
+    return '其它'
 
 
 def convert_from_alipay(filename):
+    print(f"---------alipay: {filename} ---------")
     try:
         df = pd.read_csv(os.path.realpath(filename), skiprows=4, encoding='gbk')
         # 对每个元素strip
@@ -41,10 +43,11 @@ def convert_from_alipay(filename):
 
 
 def convert_from_wechat_pay(filepath_argv):
+    print(f"---------wechat: {filepath_argv} ---------")
     try:
         # 编码格式为UTF8-BOM
         df = pd.read_csv(filepath_argv, skiprows=16, encoding='utf-8-sig', sep=',')
-        df['备注'] = df.apply(lambda x: "|-|".join([x['交易类型'], x['交易对方'], x['商品']]), axis=1)
+        df['备注'] = df.apply(lambda x: "|-|".join([x['交易对方'], x['商品'], x['交易类型']]), axis=1)
         succ_df = df[df['收/支'] != '']
         succ_df["分类"] = None
         out_df = succ_df[['交易时间', '分类', '收/支', '金额(元)', '备注']]
@@ -65,7 +68,9 @@ if __name__ == "__main__":
     # print(classify_by_csv("鱼小喵在成都(时代天街店)外卖订单"))
     if sys.argv.__len__() != 2:
         help_and_exit()
-    csv_files = [x for x in os.listdir(sys.argv[1]) if x.endswith(".csv") and 'classification' not in x]
+    bill_dir = os.path.abspath(sys.argv[1])
+    csv_files = [os.path.join(bill_dir, x) for x in os.listdir(bill_dir) if
+                 x.endswith(".csv") and 'classification' not in x]
     for csv in csv_files:
         bill_filename = os.path.realpath(csv)
         if "alipay" in bill_filename:
